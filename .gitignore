@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+
+*.swp
+*.swo
+.idea/
+.vscode/
+
+evals/**/results/
+*.local.md
+
+.env
+.env.*
+!.env.example
