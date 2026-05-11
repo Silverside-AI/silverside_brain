@@ -1,0 +1,93 @@
+catalog_version: 0.1.0
+scope: curated_test_hints
+notes:
+  - These entries mirror currently compatibility-supported backend handoff endpoints.
+  - This is not a comprehensive FAL catalog.
+  - Confirm live endpoint schemas before submit.
+
+endpoints:
+  - endpoint_id: fal-ai/nano-banana-pro
+    name: Nano Banana Pro
+    description: Curated test hint for prompt-driven image generation with optional aspect, format, seed, count, resolution, and web-search controls supported by the backend handoff.
+    category: image
+    typical_duration_seconds: 60
+    input_schema:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          description: User-approved image prompt.
+          maxLength: 4000
+        aspect_ratio:
+          type: string
+          description: Desired aspect ratio.
+          enum:
+            - auto
+            - 21:9
+            - 16:9
+            - 3:2
+            - 4:3
+            - 5:4
+            - 1:1
+            - 4:5
+            - 3:4
+            - 2:3
+            - 9:16
+        output_format:
+          type: string
+          description: Image output format.
+          enum:
+            - jpeg
+            - png
+            - webp
+        seed:
+          type: integer
+          description: Optional deterministic seed when supported.
+        num_images:
+          type: integer
+          description: Optional image count; backend-supported range is 1 to 4.
+          minimum: 1
+          maximum: 4
+        resolution:
+          type: string
+          description: Optional output resolution.
+          enum:
+            - 1K
+            - 2K
+            - 4K
+
+  - endpoint_id: fal-ai/flux-2-pro
+    name: FLUX 2 Pro
+    description: Curated test hint for prompt-driven image generation with optional image-size, format, and seed controls supported by the backend handoff.
+    category: image
+    typical_duration_seconds: 60
+    input_schema:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          description: User-approved image prompt.
+          maxLength: 4000
+        image_size:
+          type: string
+          description: Desired output size or orientation.
+          enum:
+            - square_hd
+            - square
+            - portrait_4_3
+            - portrait_16_9
+            - landscape_4_3
+            - landscape_16_9
+        output_format:
+          type: string
+          description: Image output format.
+          enum:
+            - jpeg
+            - png
+        seed:
+          type: integer
+          description: Optional deterministic seed when supported.
