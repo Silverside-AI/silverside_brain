@@ -1,28 +1,54 @@
-catalog_version: 0.1.0
-scope: curated_test_hints
+catalog_version: 1.0.0
+scope: curated_image_generation
+source: local_curated
+generated_at: "2026-05-11T00:00:00Z"
+last_verified_at: "2026-05-11T00:00:00Z"
+defaults:
+  verify_live_schema: true
+  submit_tool: fal_submit
+  poll_tool: fal_poll
 notes:
-  - These entries mirror currently compatibility-supported backend handoff endpoints.
-  - This is not a comprehensive FAL catalog.
-  - Confirm live endpoint schemas before submit.
+  - Runtime hydration reads this catalog from the configured GitHub brain repo after local validation and sync.
+  - Use endpoint presets and examples to build params before calling fal_submit.
+  - This is a curated allowlist, not a comprehensive FAL catalog.
 
 endpoints:
   - endpoint_id: fal-ai/nano-banana-pro
     name: Nano Banana Pro
-    description: Curated test hint for prompt-driven image generation with optional aspect, format, seed, count, resolution, and web-search controls supported by the backend handoff.
+    status: active
     category: image
-    typical_duration_seconds: 60
+    capabilities:
+      - text-to-image
+      - product-hero
+      - multi-image
+      - resolution-control
+      - web-search-assisted-generation
+    priority: 90
+    estimated_cost_usd: 0.05
+    typical_duration_seconds: 75
+    description: High-quality prompt-driven image generation with flexible aspect ratios, optional image count, optional resolution, and optional web-search assistance.
+    use_when:
+      - The user requests a common aspect ratio such as 16:9, 1:1, 4:5, or 9:16.
+      - The user asks for multiple images in one request.
+      - The user asks for 1K, 2K, or 4K output.
+      - The user asks for web-search-assisted image generation.
+    avoid_when:
+      - The user specifically needs FLUX-style prompt adherence or FLUX endpoint behavior.
+      - The request requires an unsupported aspect ratio outside the enum.
     input_schema:
       type: object
       required:
         - prompt
+      additionalProperties: false
       properties:
         prompt:
           type: string
-          description: User-approved image prompt.
+          description: Final user-approved prompt. Include "no text" or other exclusions when requested.
+          minLength: 1
           maxLength: 4000
         aspect_ratio:
           type: string
-          description: Desired aspect ratio.
+          description: Output aspect ratio.
           enum:
             - auto
             - 21:9
@@ -35,6 +61,7 @@ endpoints:
             - 3:4
             - 2:3
             - 9:16
+          default: 1:1
         output_format:
           type: string
           description: Image output format.
@@ -42,14 +69,16 @@ endpoints:
             - jpeg
             - png
             - webp
+          default: png
         seed:
           type: integer
-          description: Optional deterministic seed when supported.
+          description: Optional deterministic generation seed.
         num_images:
           type: integer
-          description: Optional image count; backend-supported range is 1 to 4.
+          description: Number of images to request.
           minimum: 1
           maximum: 4
+          default: 1
         resolution:
           type: string
           description: Optional output resolution.
@@ -57,24 +86,81 @@ endpoints:
             - 1K
             - 2K
             - 4K
+          default: 1K
+        enable_web_search:
+          type: boolean
+          description: Allow the endpoint to use web search when the user explicitly asks for current-world visual context.
+          default: false
+    presets:
+      product_hero:
+        aspect_ratio: 16:9
+        output_format: png
+        num_images: 1
+        resolution: 2K
+      square_social:
+        aspect_ratio: 1:1
+        output_format: png
+        num_images: 1
+        resolution: 1K
+      vertical_story:
+        aspect_ratio: 9:16
+        output_format: png
+        num_images: 1
+        resolution: 1K
+    examples:
+      - intent: Generate a cinematic product hero image with no text.
+        preset: product_hero
+        params:
+          prompt: Cinematic product hero image of a silver AI dashboard on a dark desk, moody studio lighting, shallow depth of field, no text, no watermark.
+          aspect_ratio: 16:9
+          output_format: png
+          num_images: 1
+          resolution: 2K
+      - intent: Generate a square social post asset.
+        preset: square_social
+        params:
+          prompt: Clean square social media image of an abstract silver AI interface, premium technology aesthetic, no text.
+          aspect_ratio: 1:1
+          output_format: png
+          num_images: 1
+          resolution: 1K
+    compatibility:
+      backend_supported: true
+      schema_source: curated
+      verified_with_live_schema: false
 
   - endpoint_id: fal-ai/flux-2-pro
     name: FLUX 2 Pro
-    description: Curated test hint for prompt-driven image generation with optional image-size, format, and seed controls supported by the backend handoff.
+    status: active
     category: image
-    typical_duration_seconds: 60
+    capabilities:
+      - text-to-image
+      - prompt-adherence
+      - high-quality-rendering
+    priority: 70
+    estimated_cost_usd: 0.06
+    typical_duration_seconds: 75
+    description: High-quality prompt-driven image generation with FLUX image-size controls.
+    use_when:
+      - The user asks for a straightforward high-quality text-to-image result.
+      - The request maps cleanly to square, portrait, or landscape image_size values.
+    avoid_when:
+      - The user asks for num_images, 1K/2K/4K resolution, or web-search assistance.
+      - The user asks for literal 16:9 syntax; use image_size landscape_16_9 instead.
     input_schema:
       type: object
       required:
         - prompt
+      additionalProperties: false
       properties:
         prompt:
           type: string
-          description: User-approved image prompt.
+          description: Final user-approved prompt. Include "no text" or other exclusions when requested.
+          minLength: 1
           maxLength: 4000
         image_size:
           type: string
-          description: Desired output size or orientation.
+          description: Output size or orientation.
           enum:
             - square_hd
             - square
@@ -82,12 +168,41 @@ endpoints:
             - portrait_16_9
             - landscape_4_3
             - landscape_16_9
+          default: landscape_4_3
         output_format:
           type: string
           description: Image output format.
           enum:
             - jpeg
             - png
+          default: jpeg
         seed:
           type: integer
-          description: Optional deterministic seed when supported.
+          description: Optional deterministic generation seed.
+    presets:
+      landscape_hero:
+        image_size: landscape_16_9
+        output_format: jpeg
+      square_hd:
+        image_size: square_hd
+        output_format: png
+      portrait:
+        image_size: portrait_16_9
+        output_format: jpeg
+    examples:
+      - intent: Generate a 16:9 hero image with FLUX.
+        preset: landscape_hero
+        params:
+          prompt: Cinematic technology hero image of a silver AI dashboard in a premium dark workspace, no text, no watermark.
+          image_size: landscape_16_9
+          output_format: jpeg
+      - intent: Generate a high-detail square concept image.
+        preset: square_hd
+        params:
+          prompt: High-detail square image of an abstract silver neural interface, elegant studio lighting, no text.
+          image_size: square_hd
+          output_format: png
+    compatibility:
+      backend_supported: true
+      schema_source: curated
+      verified_with_live_schema: false
