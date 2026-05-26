@@ -1,0 +1,1 @@
+{"input":"Use the test-recipe skill to verify sidecar loading.","expected_markers":["TEST_RECIPE_SKILL_USED","sidecar_status: read"],"notes":"The response should summarize the checklist sidecar as three short bullets."}

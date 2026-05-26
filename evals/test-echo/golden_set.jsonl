@@ -1,0 +1,1 @@
+{"input":"Use the test-echo skill to confirm skills are loading.","expected_markers":["TEST_ECHO_SKILL_USED"],"notes":"The response should state that the skill was loaded and echo the request concisely."}
