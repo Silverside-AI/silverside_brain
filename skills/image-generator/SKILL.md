@@ -15,26 +15,25 @@ sidecars:
 
 # Image Generator
 
-Use this skill when the user asks to generate, refine, or prepare an image generation request. This is a routing and instruction skill only: backend Python owns FAL mechanics, validation, submission, polling, and result handling.
+Use this skill when the user asks to generate, refine, or prepare an image generation request. This is a routing and instruction skill only: image execution runs through the hosted fal MCP server (`fal-ai`) from the sandbox orchestrator.
 
 ## Operating Flow
 
 1. Preserve the user's prompt constraints, including subject, style, aspect ratio, text requirements, exclusions, and any seed or output format preferences.
-2. Route generation work through `generator_agent`.
-3. For FAL-backed image generation, use the curated endpoint catalog first. Pick an endpoint whose `capabilities`, `use_when`, and examples match the request.
-4. Have the generator specialist inspect the selected endpoint schema with `fal_get_schema` before preparing a submission. Use `fal_search_endpoints` only when the curated catalog does not fit the user request.
-5. Submit paid generation through `fal_submit` only after the user has approved the final prompt, endpoint, and relevant cost or spend caveat.
-6. Poll with `fal_poll` after submission and return generated asset metadata or result links according to the host application flow.
+2. Discover endpoints with the fal MCP `search_models` or `recommend_model`. Prefer the curated endpoint catalog (`fal_endpoint_catalog.yaml`) when an entry's `capabilities`, `use_when`, and examples match the request.
+3. Inspect the selected endpoint with the fal MCP `get_model_schema` before building parameters.
+4. Run image generation with the fal MCP `run_model` (use `submit_job` + `check_job` for long-running jobs like video). Only run paid models after the user has approved the final prompt, endpoint, and relevant cost or spend caveat.
+5. For image-to-image or editing with user-attached references, upload the mounted file to fal first with `fal_client.upload_file('/workspace/uploads/<name>')` from a sandbox shell command, then pass the returned fal URL into the model's `image_url`-style field.
+6. Return generated asset metadata or result links according to the host application flow. The backend re-uploads outputs to R2 automatically.
 
 ## Safety And Routing Rules
 
-- Never invent endpoint IDs. Use verified endpoint search/schema results, or the curated endpoints in `fal_endpoint_catalog.yaml` when they match backend support.
-- Treat `fal-ai/nano-banana-pro` and `fal-ai/flux-2-pro` as the current curated image-generation allowlist, not as a comprehensive FAL catalog.
-- Do not call or mention a `generate_image` shortcut. Image execution must use `fal_get_schema`, `fal_submit`, and `fal_poll`.
-- Do not claim this skill executes FAL calls directly. The skill gives domain guidance; the backend and generator-native FAL tools perform the work.
-- Ask before spending. Image generation can incur cost, so confirm intent before submission.
+- Never invent endpoint IDs. Use verified `search_models`/`get_model_schema` results, or the curated endpoints in `fal_endpoint_catalog.yaml` when they match.
+- Treat `fal-ai/nano-banana-pro` and `fal-ai/flux-2-pro` as the current curated image-generation allowlist, not as a comprehensive fal catalog.
+- Do not call or mention a `generate_image` shortcut. Image execution must go through the fal MCP `get_model_schema` and `run_model`/`submit_job`.
+- Ask before spending. Image generation can incur cost, so confirm intent before running a paid model.
 - Keep prompt refinements faithful. Improve clarity and completeness without changing the user's requested content or constraints.
 
-## Internal Specialist Flow
+## Execution Flow
 
-When `generator_agent` handles FAL work, it must use generator-native FAL tools to inspect schemas, submit approved jobs, and poll results. Prefer catalog examples and presets over assumptions, then verify the final params against the endpoint schema. Omit optional fields unless the user requested them, the selected preset supplies them, or the schema clearly supports them.
+When handling fal work, use the fal MCP tools to inspect schemas and run approved jobs. Prefer catalog examples and presets over assumptions, then verify the final params against the endpoint schema. Omit optional fields unless the user requested them, the selected preset supplies them, or the schema clearly supports them.
