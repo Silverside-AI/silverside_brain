@@ -1,0 +1,62 @@
+name: skills-sync
+
+# On PR close (merged or not), reconcile each changed skill's Supabase
+# agent_skills row via the backend's secret-authed /admin/skills/sync route.
+# SKILL.md in this repo stays the source of truth; the dashboard row is a
+# lifecycle/index projection.
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - 'skills/**/SKILL.md'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile changed skills
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+          SKILLS_SYNC_SECRET: ${{ secrets.SKILLS_SYNC_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BACKEND_BASE_URL:-}" ]; then
+            echo "BACKEND_BASE_URL repo variable is not set" >&2
+            exit 1
+          fi
+
+          # Collect skill slugs from changed files matching skills/<slug>/SKILL.md
+          slugs="$(
+            gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/files" \
+              --jq '.[].filename' \
+              | sed -nE 's#^skills/([a-z0-9][a-z0-9-]*)/SKILL\.md$#\1#p' \
+              | sort -u
+          )"
+
+          if [ -z "$slugs" ]; then
+            echo "No skill SKILL.md changes detected; nothing to sync."
+            exit 0
+          fi
+
+          echo "Reconciling skills:"
+          echo "$slugs"
+
+          slugs_json="$(printf '%s\n' "$slugs" | jq -R . | jq -s .)"
+          payload="$(jq -n \
+            --argjson pr "${PR_NUMBER}" \
+            --argjson slugs "$slugs_json" \
+            '{pull_request_number: $pr, slugs: $slugs}')"
+
+          curl -fsS -X POST "${BACKEND_BASE_URL%/}/admin/skills/sync" \
+            -H "Content-Type: application/json" \
+            -H "X-Silverside-Skills-Sync-Secret: ${SKILLS_SYNC_SECRET}" \
+            -d "$payload"
